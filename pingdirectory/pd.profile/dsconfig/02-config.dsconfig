@@ -1,0 +1,4 @@
+dsconfig set-connection-handler-prop \
+    --handler-name 'HTTPS Connection Handler'  \
+    --add web-application-extension:Delegator  \
+    --add 'web-application-extension:Privacy Dashboard' 

@@ -1,0 +1,42 @@
+PING_IDENTITY_PASSWORD=2AuthorizeM0re
+
+# these are needed by the server profiles
+
+LOCATION=Docker
+
+PAZ_ENGINE_PRIVATE_HOSTNAME=pingauthorize
+PAZP_ENGINE_PRIVATE_HOSTNAME=pingauthorize-pap
+PD_ENGINE_PRIVATE_HOSTNAME=pingdirectory
+PF_ENGINE_PRIVATE_HOSTNAME=pingfederate
+
+PAZ_ENGINE_PUBLIC_HOSTNAME=localhost
+PAZP_ENGINE_PUBLIC_HOSTNAME=localhost
+PD_ENGINE_PUBLIC_HOSTNAME=localhost
+PF_ENGINE_PUBLIC_HOSTNAME=localhost
+
+# Demo SPA
+HEALTH_PORTAL_PUBLIC_BASE_URL=https://localhost:58443
+HEALTH_PORTAL_FAMILY=argonaut
+
+# FHIR API via PingAuthorize
+FHIR_PROXIED_PUBLIC_BASE_URL=https://localhost:28443
+
+# privacy dashboard and other single-page apps
+OAUTH2_PUBLIC_AUTHORIZATION_URL=https://localhost:9031/as/authorization.oauth2
+OAUTH2_SERVER_BASE_URL=https://pingfederate:9031
+OAUTH2_JWKS_URL=https://pingfederate:9031/ext/oauth_jwks
+PRIVACY_DASHBOARD_CLIENT_ID=privacy-dashboard
+
+# pap
+DECISION_POINT_SHARED_SECRET=whatever
+
+# ports
+PF_ADMIN_PORT=9999
+PF_ENGINE_PORT=9031
+PD_LDAP_PORT=11389
+PD_LDAPS_PORT=11636
+PD_HTTP_PORT=18000
+PD_HTTPS_PORT=18443
+PAZ_HTTP_PORT=28000
+PAZ_HTTPS_PORT=28443
+PAZP_HTTPS_PORT=38443

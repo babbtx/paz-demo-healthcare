@@ -1,0 +1,173 @@
+# Configuration changes to bring source (config-postSetup.gz) to target (config.ldif)
+# Comparison options:
+#   Ignore differences in configuration that is part of the topology registry
+#   Ignore differences on shared host
+#   Ignore differences by instance
+
+dsconfig set-trust-manager-provider-prop \
+    --provider-name 'Blind Trust'  \
+    --set enabled:true 
+
+dsconfig create-external-server \
+    --server-name 'Babbitt S3 Bucket'  \
+    --type api  \
+    --set base-url:https://files.aws-public.babb.ping-eng.com  \
+    --set trust-manager-provider:JVM-Default 
+
+dsconfig create-external-server \
+    --server-name 'Epic FHIR Sandbox'  \
+    --type api  \
+    --set base-url:https://open-ic.epic.com  \
+    --set trust-manager-provider:JVM-Default 
+
+dsconfig create-external-server \
+    --server-name PingDirectory  \
+    --type ping-identity-ds  \
+    --set server-host-name:${PD_ENGINE_PRIVATE_HOSTNAME} \
+    --set server-port:${PD_LDAPS_PORT}  \
+    --set location:${LOCATION}  \
+    --set 'bind-dn:cn=Governance User,cn=Root DNs,cn=config'  \
+    --set 'password:${PING_IDENTITY_PASSWORD}' \
+    --set connection-security:ssl  \
+    --set key-manager-provider:Null  \
+    --set 'trust-manager-provider:Blind Trust' 
+
+dsconfig create-external-server \
+    --server-name PAP  \
+    --type policy  \
+    --set base-url:https://${PAZP_ENGINE_PRIVATE_HOSTNAME}:${PAZP_HTTPS_PORT} \
+    --set hostname-verification-method:allow-all  \
+    --set key-manager-provider:Null  \
+    --set 'trust-manager-provider:Blind Trust'  \
+    --set 'shared-secret:${DECISION_POINT_SHARED_SECRET}'  \
+    --set decision-node:e51688ff-1dc9-4b6c-bb36-8af64d02e9d1  \
+    --set 'branch:Default Policies' 
+
+dsconfig create-external-server \
+    --server-name Ping-JWT-Server  \
+    --type http  \
+    --set base-url:${OAUTH2_SERVER_BASE_URL}  \
+    --set hostname-verification-method:allow-all  \
+    --set 'trust-manager-provider:Blind Trust' 
+
+dsconfig create-load-balancing-algorithm \
+    --algorithm-name 'PingDirectory LBA'  \
+    --type failover  \
+    --set enabled:true  \
+    --set backend-server:PingDirectory \
+    --set use-location:false 
+
+dsconfig create-store-adapter \
+    --adapter-name PatientsStoreAdapter  \
+    --type ldap  \
+    --set enabled:true  \
+    --set 'load-balancing-algorithm:PingDirectory LBA'  \
+    --set structural-ldap-objectclass:inetOrgPerson  \
+    --set auxiliary-ldap-objectclass:fhirPersonAux  \
+    --set include-base-dn:ou=Patients,dc=example,dc=com  \
+    --set create-dn-pattern:entryUUID=x,ou=Patients,dc=example,dc=com 
+
+dsconfig create-scim-resource-type \
+    --type-name Patients  \
+    --type pass-through  \
+    --set enabled:true  \
+    --set endpoint:Patients  \
+    --set primary-store-adapter:PatientsStoreAdapter 
+
+dsconfig set-store-adapter-prop \
+    --adapter-name UserStoreAdapter  \
+    --set enabled:true  \
+    --set 'load-balancing-algorithm:PingDirectory LBA'  \
+    --set create-dn-pattern:entryUUID=server-generated,ou=people,dc=example,dc=com 
+
+dsconfig create-scim-resource-type \
+    --type-name Users  \
+    --type pass-through  \
+    --set enabled:true  \
+    --set endpoint:Users  \
+    --set primary-store-adapter:UserStoreAdapter 
+
+dsconfig create-access-token-validator \
+    --validator-name mock  \
+    --type mock  \
+    --set enabled:true 
+
+dsconfig create-token-resource-lookup-method \
+    --validator-name mock  \
+    --method-name 'User match SCIM uid to token sub'  \
+    --type scim  \
+    --set evaluation-order-index:1  \
+    --set scim-resource-type:Users  \
+    --set 'match-filter:uid eq "%sub%"' 
+
+dsconfig create-access-token-validator \
+    --validator-name Ping-JWT  \
+    --type jwt  \
+    --set enabled:true  \
+    --set authorization-server:Ping-JWT-Server  \
+    --set jwks-endpoint-path:${OAUTH2_JWKS_URL}
+
+dsconfig create-token-resource-lookup-method \
+    --validator-name Ping-JWT  \
+    --method-name 'Patient match SCIM mail to token email'  \
+    --type scim  \
+    --set evaluation-order-index:1  \
+    --set scim-resource-type:Patients  \
+    --set 'match-filter:mail eq "%email%"' 
+
+dsconfig create-gateway-api-endpoint \
+    --endpoint-name 'Epic FHIR API'  \
+    --set service:FHIR.{FhirResource}  \
+    --set http-auth-evaluation-behavior:evaluate-and-discard  \
+    --set inbound-base-path:/epic/{FhirResource}  \
+    --set outbound-base-path:/FHIR/api/FHIR/DSTU2/{FhirResource}  \
+    --set 'api-server:Epic FHIR Sandbox' 
+
+dsconfig create-gateway-api-endpoint \
+    --endpoint-name 'Health Portal Family API'  \
+    --set service:Family  \
+    --set http-auth-evaluation-behavior:evaluate-and-discard  \
+    --set inbound-base-path:/family  \
+    --set outbound-base-path:/health-portal/${HEALTH_PORTAL_FAMILY}.json  \
+    --set 'api-server:Babbitt S3 Bucket' 
+
+dsconfig create-gateway-api-endpoint \
+    --endpoint-name 'Health Portal Permissions API'  \
+    --set service:Permissions  \
+    --set http-auth-evaluation-behavior:evaluate-and-discard  \
+    --set inbound-base-path:/permissions  \
+    --set outbound-base-path:/health-portal/permissions.json  \
+    --set 'api-server:Babbitt S3 Bucket' 
+
+dsconfig set-policy-decision-service-prop \
+    --set pdp-mode:external  \
+    --set policy-server:PAP  \
+    --set trust-framework-version:v2  \
+    --set decision-response-view:decision-tree  \
+    --set decision-response-view:evaluated-entities  \
+    --set decision-response-view:request 
+
+dsconfig set-http-servlet-cross-origin-policy-prop \
+    --policy-name 'Development Cross-Origin Policy'  \
+    --set cors-allowed-origins:* 
+
+dsconfig set-http-servlet-extension-prop \
+    --extension-name Gateway  \
+    --set 'cross-origin-policy:Development Cross-Origin Policy' 
+
+dsconfig set-log-publisher-prop \
+    --publisher-name 'Debug Trace Logger'  \
+    --set enabled:true  \
+    --remove 'retention-policy:File Count Retention Policy'  \
+    --add 'retention-policy:Retain Two Files Retention Policy' 
+
+dsconfig create-web-application-extension \
+    --extension-name Delegator  \
+    --set base-context-path:/delegator  \
+    --set document-root-directory:webapps/delegator/app 
+
+dsconfig set-connection-handler-prop \
+    --handler-name 'HTTPS Connection Handler'  \
+    --add web-application-extension:Delegator 
+
+

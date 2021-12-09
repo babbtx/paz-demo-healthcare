@@ -1,0 +1,112 @@
+version: '3.8'
+volumes:
+  data-pd-healthcare:
+  data-pap-healthcare:
+services:
+  pingfederate:
+    image: pingidentity/pingfederate:10.3.3-latest
+    container_name: pingfederate
+    tmpfs: /run/secrets
+    ports:
+      - "${PF_ADMIN_PORT:-9999}:${PF_ADMIN_PORT:-9999}"
+      - "${PF_ENGINE_PORT:-9031}:${PF_ENGINE_PORT:-9031}"
+    env_file:
+      - ${HOME}/.pingidentity/devops
+      - env-defaults.txt
+      - .env
+    environment:
+      SERVER_PROFILE_URL: https://github.com/babbtx/paz-demo-healthcare.git
+      SERVER_PROFILE_PATH: pingfederate
+  pingdirectory:
+    image: pingidentity/pingdirectory:8.3.0.0-edge
+    container_name: pingdirectory
+    tmpfs: /run/secrets
+    volumes:
+      - type: volume
+        source: data-pd-healthcare
+        target: /opt/out
+    ports:
+      - "${PD_LDAPS_PORT:-11636}:${PD_LDAPS_PORT:-11636}"
+      - "${PD_HTTPS_PORT:-18443}:${PD_HTTPS_PORT:-18443}"
+    expose:
+      - "${PD_LDAP_PORT:-11389}"
+      - "${PD_HTTP_PORT:-18000}"
+    env_file:
+      - ${HOME}/.pingidentity/devops
+      - env-defaults.txt
+      - .env
+    environment:
+      SERVER_PROFILE_URL: https://github.com/babbtx/paz-demo-healthcare.git
+      SERVER_PROFILE_PATH: pingdirectory
+      LDAP_PORT: ${PD_LDAP_PORT:-11389}
+      LDAPS_PORT: ${PD_LDAPS_PORT:-11636}
+      HTTP_PORT: ${PD_HTTP_PORT:-18000}
+      HTTPS_PORT: ${PD_HTTPS_PORT:-18443}
+  pingauthorize:
+    image: pingidentity/pingauthorize:8.3.0.0-edge
+    container_name: pingauthorize
+    user: ping
+    tmpfs: /run/secrets
+    ports:
+      - "${PAZ_HTTPS_PORT:-28443}:${PAZ_HTTPS_PORT:-28443}"
+    env_file:
+      - ${HOME}/.pingidentity/devops
+      - env-defaults.txt
+      - .env
+    environment:
+      SERVER_PROFILE_URL: https://github.com/babbtx/paz-demo-healthcare.git
+      SERVER_PROFILE_PATH: pingauthorize
+      HTTP_PORT: ${PAZ_HTTP_PORT:-28000}
+      HTTPS_PORT: ${PAZ_HTTPS_PORT:-28443}
+  pingauthorize-pap:
+    image: pingidentity/pingauthorizepap:8.3.0.0-edge
+    container_name: pingauthorize-pap
+    user: ping
+    tmpfs: /run/secrets
+    volumes:
+      - type: volume
+        source: data-pap-healthcare
+        target: /opt/out
+    ports:
+      - "${PAZP_HTTPS_PORT:-38443}:${PAZP_HTTPS_PORT:-38443}"
+    env_file:
+      - ${HOME}/.pingidentity/devops
+      - env-defaults.txt
+      - .env
+    environment:
+      SERVER_PROFILE_URL: https://github.com/babbtx/paz-demo-healthcare.git
+      SERVER_PROFILE_PATH: pingauthorize-pap
+      HTTPS_PORT: ${PAZP_HTTPS_PORT:-38443}
+      REST_API_HOSTNAME: ${PAZP_ENGINE_PUBLIC_HOSTNAME:-localhost}
+      PING_OPTIONS_FILE: /opt/in/instance/config/options.yml
+      PING_H2_FILE: /opt/out/Symphonic
+      PING_H2_BACKUP_DIR: /opt/out/backups
+  policy-installer:
+    build:
+      context: ./policy-installer
+    environment:
+      PAZP_ENGINE_PRIVATE_HOSTNAME: ${PAP_INTERNAL_HOSTNAME:-pingauthorize-pap}
+      PAZP_HTTPS_PORT: ${PAP_HTTPS_PORT:-38443}
+    depends_on:
+      - pingauthorize-pap
+  pingdataconsole:
+    image: pingidentity/pingdataconsole:8.3.0.0-edge
+    container_name: pingdataconsole
+    ports:
+      - ${CONSOLE_HTTPS_PORT:-48443}:8443
+    env_file:
+      - ${HOME}/.pingidentity/devops
+      - env-defaults.txt
+      - .env
+  health-portal:
+    build:
+      context: ./health-portal
+    env_file: .env
+    environment:
+      FHIR_PROXIED_PUBLIC_BASE_URL: ${FHIR_PROXIED_PUBLIC_BASE_URL:-https://localhost:28443}
+      FHIR_PROXIED_API_NAMESPACE: ${FHIR_PROXIED_API_NAMESPACE:-epic}
+      OAUTH2_PUBLIC_AUTHORIZATION_URL: ${OAUTH2_PUBLIC_AUTHORIZATION_URL:-https://localhost:9031/as/authorization.oauth2}
+      HEALTH_PORTAL_CLIENT_ID: ${HEALTH_PORTAL_CLIENT_ID:-health-portal}
+    ports:
+      - ${HEALTH_PORTAL_HTTP_PORT:-58000}:80
+      - ${HEALTH_PORTAL_HTTPS_PORT:-58443}:443
