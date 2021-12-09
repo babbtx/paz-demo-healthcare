@@ -78,7 +78,7 @@ services:
       SERVER_PROFILE_PATH: pingauthorize-pap
       HTTPS_PORT: ${PAZP_HTTPS_PORT:-38443}
       REST_API_HOSTNAME: ${PAZP_ENGINE_PUBLIC_HOSTNAME:-localhost}
-      PING_OPTIONS_FILE: /opt/in/instance/config/options.yml
+      PING_OPTIONS_FILE: /opt/staging/instance/config/options.yml
       PING_H2_FILE: /opt/out/Symphonic
       PING_H2_BACKUP_DIR: /opt/out/backups
   policy-installer:
