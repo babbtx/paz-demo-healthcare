@@ -4,7 +4,7 @@ volumes:
   data-pap-healthcare:
 services:
   pingfederate:
-    image: pingidentity/pingfederate:10.3.3-latest
+    image: pingidentity/pingfederate:10.3.4-latest
     container_name: pingfederate
     tmpfs: /run/secrets
     ports:
