@@ -15,6 +15,7 @@ RUN openssl req -x509 \
     -days 825 -sha256 -out CA.crt
 
 # https cert request
+RUN mkdir -p /etc/ssl/private
 RUN openssl req -new \
     -newkey rsa:2048 -nodes -keyout /etc/ssl/private/https.key \
     -subj "/CN=localhost/C=US/ST=CO/O=Ping Identity" \
